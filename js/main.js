@@ -14,15 +14,15 @@
 //   3. Add the parser object to the PARSERS array below
 const PARSERS = [
   TicketmasterParser,
+  TickPickParser,
 
   // Uncomment (and add the <script> tag) as you port each parser:
-  // FrontGateParser,
-  // TixrParser,
+  // StubHubParser,
   // TicketWebParser,
   // DNALoungeParser,
+  // TixrParser,
   // AXSParser,
-  // TickPickParser,
-  // StubHubParser,
+  // FrontGateParser,
 ];
 
 // Build the Gmail search query by combining all parser sender filters.
