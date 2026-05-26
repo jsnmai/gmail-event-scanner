@@ -23,19 +23,19 @@ const FrontGateParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body);
 
-    console.debug('[FG] subject:', subject);
+    // console.debug('[FG] subject:', subject);
 
     // Only parse receipt emails — skip shipping notices, digital ticket delivery, etc.
     const eventSubjectMatch = subject.match(_FG_EVENT_SUBJECT);
     if (!eventSubjectMatch) {
-      console.debug('[FG] skipped — subject does not match Receipt pattern');
+      // console.debug('[FG] skipped — subject does not match Receipt pattern');
       return null;
     }
 
     // Skip merchandise-only receipts (e.g. magnet bundles ordered without a ticket)
     const itemMatch = text.match(_FG_ITEM_DESCRIPTION);
     if (itemMatch && _FG_MERCHANDISE.test(itemMatch[1])) {
-      console.debug('[FG] skipped — merchandise-only receipt');
+      // console.debug('[FG] skipped — merchandise-only receipt');
       return null;
     }
 
@@ -46,10 +46,9 @@ const FrontGateParser = {
 
     const dateMatch = text.match(_FG_DATE);
     const date = dateMatch ? dateMatch[0].trim() : 'N/A';
-
-    console.debug('[FG] dateMatch:', dateMatch && dateMatch[0]);
-    console.debug('[FG] eventBodyMatch:', eventBodyMatch && eventBodyMatch[1]);
-    console.debug('[FG] text:\n' + text);
+    // console.debug('[FG] dateMatch:', dateMatch && dateMatch[0]);
+    // console.debug('[FG] eventBodyMatch:', eventBodyMatch && eventBodyMatch[1]);
+    // console.debug('[FG] text:\n' + text);
 
     const venueCityMatch = text.match(_FG_VENUE_CITY);
     const venue = venueCityMatch ? venueCityMatch[1].trim() : 'N/A';
@@ -78,6 +77,8 @@ const FrontGateParser = {
 };
 
 // Event name from subject: "Your HARD Summer Receipt - Order #123" → "HARD Summer"
+// Digital Tickets emails (delivery notifications for an existing order) are intentionally
+// excluded — each Receipt corresponds to one purchase, which is what we want to count.
 const _FG_EVENT_SUBJECT = /Your (.+?) Receipt/i;
 
 // "ARTIST at VENUE" on the line just before the day name — more accurate than the subject

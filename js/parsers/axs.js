@@ -34,31 +34,31 @@ const AXSParser = {
     // AXS uses narrow no-break spaces (U+00A0, U+202F) between time and AM/PM — normalize first
     const text = _htmlToText(body).replace(/[  ]/g, ' ');
 
-    console.debug('[AXS] subject:', subject);
-    console.debug('[AXS] text:\n' + text);
+    // console.debug('[AXS] subject:', subject);
+    // console.debug('[AXS] text:\n' + text);
 
     const isOrder    = /thank you for your order|thanks for your order/i.test(text);
     const isReceived = /you received tickets/i.test(text);
     if (!isOrder && !isReceived) {
-      console.debug('[AXS] skipped — not an order confirmation or received-ticket email');
+      // console.debug('[AXS] skipped — not an order confirmation or received-ticket email');
       return null;
     }
 
     const standard  = _parseAXSStandard(text);
     const thanks    = _parseAXSThanks(text);
     const received  = _parseAXSReceived(text);
-    console.debug('[AXS] standard fields:', standard);
-    console.debug('[AXS] thanks fields:',   thanks);
-    console.debug('[AXS] received fields:', received);
+    // console.debug('[AXS] standard fields:', standard);
+    // console.debug('[AXS] thanks fields:',   thanks);
+    // console.debug('[AXS] received fields:', received);
 
     const fields = standard || thanks || received;
-    console.debug('[AXS] resolved fields:', fields);
+    // console.debug('[AXS] resolved fields:', fields);
     if (!fields) return null;
 
     const qtyMatch  = text.match(_AXS_QUANTITY);
     const costMatch = text.match(_AXS_GRAND_TOTAL) || text.match(_AXS_CHARGED);
-    console.debug('[AXS] qtyMatch:', qtyMatch);
-    console.debug('[AXS] costMatch:', costMatch);
+    // console.debug('[AXS] qtyMatch:', qtyMatch);
+    // console.debug('[AXS] costMatch:', costMatch);
 
     return {
       platform:     'AXS',

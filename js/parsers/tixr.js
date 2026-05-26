@@ -27,13 +27,13 @@ const TixrParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body);
 
-    console.debug('[Tixr] subject:', subject);
-    console.debug('[Tixr] text:\n' + text);
+    // console.debug('[Tixr] subject:', subject);
+    // console.debug('[Tixr] text:\n' + text);
 
     const fields = _parseTixrV1(text) || _parseTixrV2(text);
-    console.debug('[Tixr] v1:', _parseTixrV1(text));
-    console.debug('[Tixr] v2:', _parseTixrV2(text));
-    console.debug('[Tixr] resolved fields:', fields);
+    // console.debug('[Tixr] v1:', _parseTixrV1(text));
+    // console.debug('[Tixr] v2:', _parseTixrV2(text));
+    // console.debug('[Tixr] resolved fields:', fields);
     if (!fields) return null;
 
     const costMatch = text.match(_TIXR_COST);

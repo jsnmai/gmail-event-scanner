@@ -20,10 +20,17 @@ const TicketmasterParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body); // _htmlToText is defined in utils.js
 
+    // console.log('[TM] subject:', subject);
+    // console.log('[TM] text:\n' + text);
+
     const fields = _parseUS(text) || _parseAU(text);
+    // console.log('[TM] usMatch:', text.match(_US_BLOCK));
+    // console.log('[TM] auMatch:', text.match(_AU_BLOCK));
+    // console.log('[TM] fields:', fields);
     if (!fields) return null;
 
     const costMatch = text.match(/Total:?\s+([A-Z]{0,3}\s*\$[\d,]+\.\d{2})/i);
+    // console.log('[TM] costMatch:', costMatch && costMatch[1]);
 
     return {
       platform:     'Ticketmaster',
@@ -42,7 +49,14 @@ const TicketmasterParser = {
 //   Gryffin - 6/12 (18+)
 //   Fri · Jun 12, 2026 · 8:00 PM
 //   Cow Palace — Daly City, California
-const _US_BLOCK = /([^\n]{3,})\n+(\w+\s*[·•]\s*\w+\s+\d+,\s+\d{4}\s*[·•]\s*\d+:\d+\s*[AP]M)\n+([^—–\n]{3,})\s*[—–]\s*([^\n]+)/i;
+//
+// Multi-day range format (no comma, no time):
+//   Wobbleland - 2-DAY tickets
+//   Fri · Jan 19 2024 — Sat · Jan 20 2024
+//   Bill Graham Civic Auditorium — San Francisco, California
+//
+// Date group matches any line starting with "Day · Month" to cover both formats.
+const _US_BLOCK = /([^\n]{3,})\n+(\w+\s*[·•]\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[^\n]+)\n+([^—–\n]{3,})\s*[—–]\s*([^\n]+)/i;
 
 // AU format example:
 //   Order #31-50095/AUS

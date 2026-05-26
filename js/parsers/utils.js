@@ -23,7 +23,7 @@ function _htmlToText(html) {
 
   function walk(node) {
     if (node.nodeType === Node.TEXT_NODE) {
-      const chunk = node.textContent.replace(/[ \t\r\n]+/g, ' ');
+      const chunk = node.textContent.replace(/[ \t\r\n ]+/g, ' ');
       if (chunk.trim()) out += chunk;
       return;
     }
@@ -38,7 +38,7 @@ function _htmlToText(html) {
   walk(doc.body);
 
   return out
-    .replace(/[ \t]+/g, ' ')
+    .replace(/[ \t ]+/g, ' ')
     .replace(/\n /g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
