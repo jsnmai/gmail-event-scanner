@@ -45,6 +45,8 @@ const StubHubParser = {
   },
 };
 
-const _SH_ORDER_BLOCK = /Order #\s*\d+\n([^\n]+\|\s*\d+:\d+)\n(?:\([^\n]+\)\n)?([^\n]+)\n([^\n]+)\n(\d+)\s+Ticket/i;
+// [^\n]* after the time consumes any trailing text on the same line,
+// e.g. "(Event time subject to change)" appended without a preceding newline
+const _SH_ORDER_BLOCK = /Order #\s*\d+\n([^\n]+\|\s*\d+:\d+)[^\n]*\n(?:\([^\n]+\)\n)?([^\n]+)\n([^\n]+)\n(\d+)\s+Ticket/i;
 
-const _SH_ORDER_TOTAL = /Order Total\n\$([\d,]+\.\d{2})/i;
+const _SH_ORDER_TOTAL = /Order Total\s*\n\$([\d,]+\.\d{2})/i;

@@ -1,10 +1,10 @@
 // parsers/tickpick.js: Extracts ticket info from TickPick confirmation emails.
 //
 // Ported from python-cli/parsers/tickpick.py.
-// Both "Order Confirmed" and "Order Placed" emails contain labeled fields:
-//   Event Name:\nDom Dolla
-//   Event Date:\nFri Oct 18, 2024 4:00PM
-//   Venue:\nLos Angeles State Historic Park
+// Both "Order Confirmed" and "Order Placed" emails contain labeled fields on the same line:
+//   Event Name: Dom Dolla
+//   Event Date: Fri Oct 18, 2024 4:00PM
+//   Venue: Los Angeles State Historic Park
 
 const TickPickParser = {
   name: 'TickPick',
@@ -30,9 +30,9 @@ const TickPickParser = {
     return {
       platform:     'TickPick',
       event:        m[1].trim(),
-      venue:        m[2].trim(),
+      venue:        m[3].trim(),
       city:         'N/A',
-      date:         m[3].trim(),
+      date:         m[2].trim(),
       quantity:     qtyMatch ? parseInt(qtyMatch[1], 10) : 1,
       cost:         costMatch ? `$${costMatch[1]}` : 'N/A',
       emailSubject: subject,
@@ -42,7 +42,8 @@ const TickPickParser = {
 
 // Labeled fields present in order confirmation and order-placed emails.
 // Delivery, listing, and group-order emails lack these fields and return null.
-const _TP_EVENT_BLOCK = /Event Name:\n([^\n]+)\nEvent Date:\n([^\n]+)\nVenue:\n([^\n]+)/i;
+// Label and value appear on the same line ("Event Name: Dom Dolla"), not split across two.
+const _TP_EVENT_BLOCK = /Event Name:\s+([^\n]+)\nEvent Date:\s+([^\n]+)\nVenue:\s+([^\n]+)/i;
 
 // "Order Confirmed" format:  Order Total\n$153.00
 // "Order Placed" format:     Order Total:\n$153.00

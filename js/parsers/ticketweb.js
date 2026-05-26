@@ -58,7 +58,8 @@ const TicketWebParser = {
   },
 };
 
-const _TW_EVENT_BLOCK = /ORDER SUMMARY\n+(?:[^\n]+ Presents:\n+)?([^\n]+)\n+(\w+\s+\w+\s+\d+,\s+\d{4})\n+(\d+:\d+\s*[AP]M)/i;
+// [^\n]* after "Presents:" handles trailing spaces before the newline
+const _TW_EVENT_BLOCK = /ORDER SUMMARY\n+(?:[^\n]+Presents:[^\n]*\n+)?([^\n]+)\n+(\w+\s+\w+\s+\d+,\s+\d{4})\n+(\d+:\d+\s*[AP]M)/i;
 
 const _TW_VENUE_BLOCK = /AGE:[^\n]*\n+([^\n]+)\n+\d+[^\n]+\n+([A-Za-z][A-Za-z\s]+),\s+([A-Z]{2})\s+\d{5}/i;
 
