@@ -19,10 +19,8 @@ const PARSERS = [
   TicketWebParser,
   DNALoungeParser,
   TixrParser,
-
-  // Uncomment (and add the <script> tag) as you port each parser:
-  // AXSParser,
-  // FrontGateParser,
+  AXSParser,
+  FrontGateParser,
 ];
 
 // Build the Gmail search query by combining all parser sender filters.
@@ -197,12 +195,31 @@ function _parseDate(dateStr) {
   // Normalize platform-specific separators (·, •, @) to spaces, then collapse whitespace
   let cleaned = dateStr.replace(/[·•@]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Normalize "7:00pm" to "7:00 PM" (missing space before am/pm causes new Date() to fail)
-  cleaned = cleaned.replace(/(\d)(am|pm)\b/gi, (_, n, p) => `${n} ${p.toUpperCase()}`);
+  // For date ranges, use only the start date for sorting/display.
+  // Numeric range: "4/26/2025 4:00 PM - 4/27/2025 4:00 PM" (AXS multi-day passes)
+  cleaned = cleaned.replace(/\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}.*/i, '');
+  // Named-day range: "- Saturday, March 29" and "to Sun. Jul 23, 2023" (FrontGate, Tixr)
+  cleaned = cleaned.replace(/\s*(?:[-–]|to)\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+$/i, '');
+
+  // Normalize "at" as a time separator: "Sat Dec 28 at 3:00 PM" → "Sat Dec 28 3:00 PM"
+  // Only matches "at" immediately followed by a digit to avoid stripping "at" in venue names.
+  cleaned = cleaned.replace(/\s+at\s+(\d)/i, ' $1');
+
+  // Strip trailing timezone abbreviations: "4:00 PM EDT" → "4:00 PM"
+  cleaned = cleaned.replace(/(\d+:\d+\s*[AP]M)\s+[A-Z]{2,5}\b/i, '$1');
+
+  // Normalize day abbreviations with trailing period: "Fri." → "Fri"
+  cleaned = cleaned.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\./gi, '$1');
+
+  // Normalize am/pm — handle both "7:00pm" (no space) and "7:00 pm" (lowercase)
+  cleaned = cleaned.replace(/(\d)\s*(am|pm)\b/gi, (_, n, p) => `${n} ${p.toUpperCase()}`);
+
+  // Normalize time without minutes: "9 PM" → "9:00 PM"
+  cleaned = cleaned.replace(/\b(\d{1,2}) (AM|PM)\b/g, '$1:00 $2');
 
   let d = new Date(cleaned);
 
-  // Drop leading day-of-week and retry, e.g. "Sat 16 November 2024 7:00 PM"
+  // Drop leading day-of-week and retry: "Sat 16 November 2024 7:00 PM", "Friday, October 9, 2026"
   if (isNaN(d)) {
     cleaned = cleaned.replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*,?\s*/i, '');
     d = new Date(cleaned);
