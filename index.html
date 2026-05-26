@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ticket Scanner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <h1>Gmail Event Scanner</h1>
+      <p>Scan your Gmail for ticket confirmation emails and see them all in one place.</p>
+      <p id="supported-platforms" class="supported-platforms"></p>
+    </div>
+    <!-- SIGN OUT Button in header -->
+    <button id="sign-out-btn" class="sign-out" hidden>Sign out</button>
+  </header>
+
+  <main>
+
+    <!-- Auth section: shown before the user logs in -->
+    <section id="auth-section">
+      <p>Connect your Google account to scan your ticket emails.</p>
+
+      <!-- Clicking this opens Google's OAuth2 sign-in popup -->
+      <button id="sign-in-btn">Log in with Google</button>
+
+      <!-- Security warning/privacy note -->
+      <div class="warning-note">
+        <strong>Note:</strong> Google will show an "Google hasn't verified this app" warning.
+        Click <em>Advanced</em> → <em>Go to Gmail Event Scanner (unsafe)</em> to continue.
+      </div>
+
+      <p class="privacy-note">
+        Your emails are read <strong>directly in your browser</strong> —
+        nothing is stored or sent to any server. 
+        This app only reads your emails. It cannot send, delete, or modify anything.
+      </p>
+    </section>
+
+    <!-- App section: shown after the user signs in -->
+    <section id="app-section" hidden>
+
+      <div class="controls">
+        <!-- Starts the Gmail search + parsing pipeline -->
+        <button id="scan-btn">Scan my ticket emails</button>
+
+        <!-- Generates a CSV file locally in the browser, no upload -->
+        <button id="download-btn" class="action" hidden>Download CSV</button>
+      </div>
+
+      <!-- Updated live as the scan progresses -->
+      <p id="status"></p>
+
+      <!-- Results table: hidden until at least one ticket is found -->
+      <section id="results" hidden>
+        <div class="results-header">
+          <h2>Your Tickets</h2>
+          <span class="count">(<span id="ticket-count">0</span> found)</span>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Platform</th>
+                <th>Event</th>
+                <th>Venue</th>
+                <th>City</th>
+                <th>Qty</th>
+                <th>Cost</th>
+              </tr>
+            </thead>
+            <tbody id="ticket-tbody">
+              <!-- Rows are inserted here by main.js after scanning -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <!-- Scripts load order matters:
+       1. config.js first (CLIENT_ID must exist before auth.js reads it)
+       2. utils.js before parsers (shared helpers)
+       3. individual parsers before parsers/index.js (registry)
+       4. GIS library last (its onload calls onGISLoad, defined in main.js)  -->
+
+  <!-- Your Google OAuth Client ID, edit before deploying -->
+  <script src="js/config.js"></script>
+
+  <!-- Shared helpers for all parsers, must load before any parser file -->
+  <script src="js/utils.js"></script>
+
+  <!-- Parsers: add a new script tag here for each new parser you create -->
+  <script src="js/parsers/ticketmaster.js"></script>
+
+  <!-- Core modules -->
+  <script src="js/auth.js"></script>
+  <script src="js/gmail.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/main.js"></script>
+
+  <!-- Google Identity Services library, async/defer so it doesn't block page load.
+       onload="onGISLoad()" fires once GIS is ready, defined in main.js. -->
+  <script src="https://accounts.google.com/gsi/client" async defer onload="onGISLoad()"></script>
+
+</body>
+</html>
