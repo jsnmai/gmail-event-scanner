@@ -21,6 +21,15 @@ const PARSERS = [
   TixrParser,
   AXSParser,
   FrontGateParser,
+  UniverseParser,
+  EventbriteParser,
+  SeeTicketsParser,
+  MoshtixParser,
+  TixelParser,
+  GiveThanksParser,
+  MegatixParser,
+  TheBigEParser,
+  TicketMerchantParser,
 ];
 
 // Build the Gmail search query by combining all parser sender filters.
@@ -106,7 +115,6 @@ async function runScan() {
     setStatus(`Fetched ${emails.length} email(s). Parsing tickets...`);
 
     _tickets = [];
-    const seenKeys = new Set(); // used to skip duplicate tickets
 
     for (const email of emails) {
       const parser = findParser(email.sender, email.subject);
@@ -121,11 +129,6 @@ async function runScan() {
       }
 
       if (!ticket) continue; // parser returned null (e.g. marketing email, not a confirmation)
-
-      // Deduplicate by event + venue + date (same logic as the Python version)
-      const key = `${ticket.event}|${ticket.venue}|${ticket.date}`.toLowerCase();
-      if (seenKeys.has(key)) continue;
-      seenKeys.add(key);
 
       _tickets.push(ticket);
     }
@@ -210,8 +213,8 @@ function _parseDate(dateStr) {
   // For date ranges, use only the start date for sorting/display.
   // Numeric range: "4/26/2025 4:00 PM - 4/27/2025 4:00 PM" (AXS multi-day passes)
   cleaned = cleaned.replace(/\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}.*/i, '');
-  // Named-day range: "- Saturday, March 29" and "to Sun. Jul 23, 2023" (FrontGate, Tixr)
-  cleaned = cleaned.replace(/\s*(?:[-–]|to)\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+$/i, '');
+  // Named-day range: "- Saturday, March 29", "to Sun. Jul 23, 2023", "— Sat · Jan 20 2024" (FrontGate, Tixr, TM multi-day)
+  cleaned = cleaned.replace(/\s*(?:[-–—]|to)\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+$/i, '');
 
   // Normalize "at" as a time separator: "Sat Dec 28 at 3:00 PM" → "Sat Dec 28 3:00 PM"
   // Only matches "at" immediately followed by a digit to avoid stripping "at" in venue names.
