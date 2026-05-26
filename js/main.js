@@ -172,7 +172,7 @@ function _renderTable(tickets) {
     const row = document.createElement('tr');
     // Use _esc() on every value to prevent XSS; ticket data comes from email content
     row.innerHTML = `
-      <td>${_esc(_formatDate(t.date))}</td>
+      <td>${_esc(t.date)}</td>
       <td>${_esc(t.platform)}</td>
       <td>${_esc(t.event)}</td>
       <td>${_esc(t.venue)}</td>
@@ -236,11 +236,31 @@ function _parseDate(dateStr) {
 }
 
 // Format a raw date string for display: "06/16/2023 (Sat) · 7:00 PM"
+// For multi-day ranges, formats both ends: "03/28/2025 (Fri) · 12:00 AM – 03/29/2025 (Sat) · 12:00 AM"
 // The raw date is kept unchanged in the ticket object so the CSV export is unaffected.
 function _formatDate(dateStr) {
-  const d = _parseDate(dateStr);
-  if (isNaN(d)) return dateStr; // show original if we still can't parse it
+  // Detect range end before _parseDate strips it, so both halves can be formatted.
+  // Numeric end:    "4/26/2025 4:00 PM - 4/27/2025 4:00 PM"  (AXS multi-day)
+  // Named-day end:  "Friday, March 28, 2025 - Saturday, March 29, 2025"  (FrontGate)
+  // "to" end:       "Fri. Apr 25, 2025 to Sun. Apr 27, 2025"  (Tixr V2)
+  const numericRange = dateStr.match(/\s*[-–]\s*(\d{1,2}\/\d{1,2}\/\d{4}.*)$/i);
+  const namedRange   = dateStr.match(/\s*(?:[-–]|to)\s*((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).*)$/i);
+  const rangeEnd     = numericRange || namedRange;
 
+  if (rangeEnd) {
+    const startStr = dateStr.slice(0, dateStr.length - rangeEnd[0].length).trim();
+    const endStr   = rangeEnd[1].trim();
+    const startFmt = _formatSingleDate(startStr);
+    const endFmt   = _formatSingleDate(endStr);
+    if (startFmt && endFmt) return `${startFmt} – ${endFmt}`;
+  }
+
+  return _formatSingleDate(dateStr) || dateStr;
+}
+
+function _formatSingleDate(dateStr) {
+  const d = _parseDate(dateStr);
+  if (isNaN(d)) return null;
   const mm   = String(d.getMonth() + 1).padStart(2, '0');
   const dd   = String(d.getDate()).padStart(2, '0');
   const yyyy = d.getFullYear();

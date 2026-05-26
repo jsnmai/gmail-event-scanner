@@ -23,13 +23,21 @@ const FrontGateParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body);
 
+    console.debug('[FG] subject:', subject);
+
     // Only parse receipt emails — skip shipping notices, digital ticket delivery, etc.
     const eventSubjectMatch = subject.match(_FG_EVENT_SUBJECT);
-    if (!eventSubjectMatch) return null;
+    if (!eventSubjectMatch) {
+      console.debug('[FG] skipped — subject does not match Receipt pattern');
+      return null;
+    }
 
     // Skip merchandise-only receipts (e.g. magnet bundles ordered without a ticket)
     const itemMatch = text.match(_FG_ITEM_DESCRIPTION);
-    if (itemMatch && _FG_MERCHANDISE.test(itemMatch[1])) return null;
+    if (itemMatch && _FG_MERCHANDISE.test(itemMatch[1])) {
+      console.debug('[FG] skipped — merchandise-only receipt');
+      return null;
+    }
 
     // Prefer the body event line ("SLANDER at Los Angeles Convention Center") over the subject,
     // since some subjects only name the promoter ("Insomniac Events"), not the actual event.
@@ -38,6 +46,10 @@ const FrontGateParser = {
 
     const dateMatch = text.match(_FG_DATE);
     const date = dateMatch ? dateMatch[0].trim() : 'N/A';
+
+    console.debug('[FG] dateMatch:', dateMatch && dateMatch[0]);
+    console.debug('[FG] eventBodyMatch:', eventBodyMatch && eventBodyMatch[1]);
+    console.debug('[FG] text:\n' + text);
 
     const venueCityMatch = text.match(_FG_VENUE_CITY);
     const venue = venueCityMatch ? venueCityMatch[1].trim() : 'N/A';

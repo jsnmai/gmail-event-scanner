@@ -2,11 +2,9 @@
 //
 // Ported from python-cli/parsers/dnalounge.py.
 // DNA Lounge is a single SF venue, so venue and city are hardcoded.
-// Receipt table format:
-//   Qty   Item   Line Total
-//   1
-//   Crankdat: Absolute Annihilation Pre-Party,
-//   Thu, Jun 6th, 9PM
+// Receipt table — two formats seen in the wild:
+//   Combined:  "Crankdat: Absolute Annihilation Pre-Party, Thu, Jun 6th, 9PM"
+//   Separate:  "Lil Texas" / "Thu, Aug 10th, 9PM"  (event name and date on different lines)
 //
 // DNA Lounge emails omit the year — it's inferred from the email send date.
 
@@ -22,21 +20,55 @@ const DNALoungeParser = {
   parse(_sender, subject, body, emailDate) {
     const text = _htmlToText(body);
 
+    // DEBUG: logged subject + full plain text to confirm what _htmlToText produces per email.
+    // Found that the Lil Texas email had "Qty \n" (trailing space) while Crankdat had "Qty\n".
+    // This caused _DNA_RECEIPT to return null for Lil Texas, silently dropping the ticket.
+    // Fix: changed _DNA_RECEIPT to use Qty[^\n]* so trailing spaces are tolerated.
+    // console.debug('[DNA] subject:', subject);
+    // console.debug('[DNA] text:\n' + text);
+
     const m = text.match(_DNA_RECEIPT);
+
+    // DEBUG: confirmed the regex matched for Crankdat but returned null for Lil Texas,
+    // which pointed directly at the "Qty " trailing-space difference.
+    // console.debug('[DNA] _DNA_RECEIPT match:', m);
+
     if (!m) return null;
 
     const quantity = parseInt(m[1], 10);
 
-    // Item line has event name and date together: "Crankdat: ..., Thu, Jun 6th, 9PM -- in 3 weeks"
-    // Split on the day-of-week marker to separate event name from date.
-    const itemLine  = m[2];
-    const dateMatch = itemLine.match(_DNA_DATE);
-    if (!dateMatch) return null;
+    // DNA Lounge emails have two formats:
+    //   Combined:  "Crankdat: Absolute Annihilation Pre-Party, Thu, Jun 6th, 9PM -- in 3 weeks"
+    //   Separate:  "Lil Texas\nThu, Aug 10th, 9PM"
+    const line1 = m[2];
+    const line2 = m[3] || '';
 
-    const event  = itemLine.slice(0, itemLine.indexOf(dateMatch[0])).replace(/,\s*$/, '').trim();
+    // DEBUG: printed line1/line2 to verify the two-line capture worked after the regex fix,
+    // and to check which date format each email used (inline comma vs. standalone second line).
+    // console.debug('[DNA] line1:', JSON.stringify(line1));
+    // console.debug('[DNA] line2:', JSON.stringify(line2));
+
+    const inlineMatch     = line1.match(_DNA_DATE_INLINE);
+    const standaloneMatch = line2.match(_DNA_DATE_STANDALONE);
+
+    // DEBUG: confirmed inlineMatch fired for Crankdat and standaloneMatch for any
+    // separate-line format, verifying both branches of the date extraction logic.
+    // console.debug('[DNA] inlineMatch:', inlineMatch);
+    // console.debug('[DNA] standaloneMatch:', standaloneMatch);
+
+    let event, dateRaw;
+    if (inlineMatch) {
+      event   = line1.slice(0, line1.indexOf(inlineMatch[0])).replace(/,\s*$/, '').trim();
+      dateRaw = inlineMatch[1];
+    } else if (standaloneMatch) {
+      event   = line1.trim();
+      dateRaw = standaloneMatch[1];
+    } else {
+      return null;
+    }
 
     // Strip ordinal suffixes: "6th" → "6", "21st" → "21"
-    const dateRaw = dateMatch[1].replace(/(\d+)(?:st|nd|rd|th)\b/gi, '$1');
+    dateRaw = dateRaw.replace(/(\d+)(?:st|nd|rd|th)\b/gi, '$1');
     const date    = _dnaResolveYear(dateRaw, emailDate);
 
     const costMatch = text.match(_DNA_COST);
@@ -54,11 +86,15 @@ const DNALoungeParser = {
   },
 };
 
-// Captures quantity and the full item line; event name and date are parsed from the line separately.
-const _DNA_RECEIPT = /Qty\n+Item\n+Line Total\n+(\d+)\n+([^\n]+)/i;
+// Captures quantity and up to two item lines (event name and/or date).
+// Use [^\n]* after each header to tolerate trailing spaces (e.g. "Qty \n").
+const _DNA_RECEIPT = /Qty[^\n]*\n+Item[^\n]*\n+Line Total[^\n]*\n+(\d+)\n+([^\n]+)(?:\n([^\n]*))?/i;
 
-// Date within the item line always starts with a day-of-week abbreviation after a comma.
-const _DNA_DATE = /,\s*((Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*,\s+\w+\s+\d+\w*,\s+\d+[AP]M)/i;
+// Date embedded after a comma on the same line as the event: ", Thu, Jun 6th, 9PM"
+const _DNA_DATE_INLINE = /,\s*((Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*,\s+\w+\s+\d+\w*,\s+\d+[AP]M)/i;
+
+// Date on its own line (separate from the event name): "Thu, Aug 10th, 9PM"
+const _DNA_DATE_STANDALONE = /^((Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*,\s+\w+\s+\d+\w*,\s+\d+[AP]M)/i;
 
 const _DNA_COST = /Total\n\$([\d,]+\.\d{2})/i;
 

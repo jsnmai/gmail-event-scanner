@@ -14,6 +14,12 @@
 // Thanks (from axs@axs.com):
 //   "Get excited you're seeing Dabin Presents Stay in Bloom - Admissions
 //    at Under the K Bridge Park, Brooklyn, NY on Saturday 5-31-25 at 4:00 pm EDT."
+//
+// Received transfer (from axs.com or goldenvoice):
+//   "Serena transferred 1 ticket to you for the following event:"
+//   "Sat Apr 4, 2026 - 8:00 PM"
+//   "ISOxo presents H.C.D. - Admissions"
+//   "Cow Palace, Daly City, CA"
 
 const AXSParser = {
   name: 'AXS',
@@ -31,17 +37,21 @@ const AXSParser = {
     console.debug('[AXS] subject:', subject);
     console.debug('[AXS] text:\n' + text);
 
-    if (!/thank you for your order|thanks for your order/i.test(text)) {
-      console.debug('[AXS] skipped — no "thank you for your order" / "thanks for your order" phrase');
+    const isOrder    = /thank you for your order|thanks for your order/i.test(text);
+    const isReceived = /you received tickets/i.test(text);
+    if (!isOrder && !isReceived) {
+      console.debug('[AXS] skipped — not an order confirmation or received-ticket email');
       return null;
     }
 
-    const standard = _parseAXSStandard(text);
-    const thanks   = _parseAXSThanks(text);
+    const standard  = _parseAXSStandard(text);
+    const thanks    = _parseAXSThanks(text);
+    const received  = _parseAXSReceived(text);
     console.debug('[AXS] standard fields:', standard);
     console.debug('[AXS] thanks fields:',   thanks);
+    console.debug('[AXS] received fields:', received);
 
-    const fields = standard || thanks;
+    const fields = standard || thanks || received;
     console.debug('[AXS] resolved fields:', fields);
     if (!fields) return null;
 
@@ -56,7 +66,7 @@ const AXSParser = {
       venue:        fields.venue,
       city:         fields.city,
       date:         fields.date,
-      quantity:     qtyMatch ? parseInt(qtyMatch[1], 10) : 1,
+      quantity:     fields.quantity ?? (qtyMatch ? parseInt(qtyMatch[1], 10) : 1),
       cost:         costMatch ? `$${costMatch[1]}` : 'N/A',
       emailSubject: subject,
     };
@@ -78,7 +88,11 @@ const _AXS_INCLUDED = /Included Event\(s\)\n([^\n]+?) Admissions[,\s]/i;
 const _AXS_INCLUDED_ENTRY = /[^\n]+ Admissions, (\d+\/\d+\/\d{4})/gi;
 
 // Thanks format: single sentence with event, venue, city, date, and time.
-const _AXS_THANKS = /you're seeing ([^\n]+?) at ([^,\n]+), ([A-Za-z][^,\n]+, [A-Z]{2}) on \w+ (\S+) at (\d+:\d+ [ap]m)/i;
+const _AXS_THANKS = /you\'re seeing ([^\n]+?) at ([^,\n]+), ([A-Za-z][^,\n]+, [A-Z]{2}) on \w+ (\S+) at (\d+:\d+ [ap]m)/i;
+
+// Received-transfer format: "[Name] transferred N ticket(s) to you for the following event:"
+// followed by date - time, then "Event - Admissions", then "Venue, City, ST"
+const _AXS_RECEIVED_BLOCK = /transferred (\d+) tickets? to you for the following event:\n([^\n]+?) - (\d+:\d+\s*[AP]M)\s*\n([^\n]+?) - Admissions\n([^\n]+)/i;
 
 const _AXS_GRAND_TOTAL = /Grand Total:\n\$([\d,]+\.\d{2})/i;
 const _AXS_CHARGED     = /Amount Charged (?:to|To) (?:Your )?Credit Card:\n\$([\d,]+\.\d{2})/i;
@@ -123,4 +137,24 @@ function _parseAXSThanks(text) {
   const date  = `${m[4]} ${m[5]}`;
 
   return { event, venue: m[2].trim(), city: m[3].trim(), date };
+}
+
+function _parseAXSReceived(text) {
+  const m = text.match(_AXS_RECEIVED_BLOCK);
+  if (!m) return null;
+
+  // Date line is "Day Mon DD, YYYY - H:MM PM" — join date and time with a space
+  const date = `${m[2].trim()} ${m[3].trim()}`;
+
+  // Venue+city line: "Venue, City, ST" — split so city is the trailing "Name, ST"
+  const vl      = m[5].trim();
+  const vcMatch = vl.match(/^(.+?),\s+([A-Za-z][^,]+,\s+[A-Z]{2})$/);
+
+  return {
+    event:    m[4].trim(),
+    venue:    vcMatch ? vcMatch[1].trim() : vl,
+    city:     vcMatch ? vcMatch[2].trim() : 'N/A',
+    date,
+    quantity: parseInt(m[1], 10),
+  };
 }

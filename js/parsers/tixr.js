@@ -27,7 +27,13 @@ const TixrParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body);
 
+    console.debug('[Tixr] subject:', subject);
+    console.debug('[Tixr] text:\n' + text);
+
     const fields = _parseTixrV1(text) || _parseTixrV2(text);
+    console.debug('[Tixr] v1:', _parseTixrV1(text));
+    console.debug('[Tixr] v2:', _parseTixrV2(text));
+    console.debug('[Tixr] resolved fields:', fields);
     if (!fields) return null;
 
     const costMatch = text.match(_TIXR_COST);
@@ -69,15 +75,22 @@ function _parseTixrV1(text) {
   // Normalize "at" time separator: "Sat Dec 28 at 3:00 PM" → "Sat Dec 28 3:00 PM"
   date = date.replace(/\s+at\s+/i, ' ');
 
-  // For date ranges, take only the start date: "Tue Dec 30 - Thu Jan 1" → "Tue Dec 30"
-  date = date.replace(/\s*[-–]\s*.+$/, '').trim();
-
   // V1 omits the year — insert it from the order date line
   const yearMatch = text.match(_TIXR_ORDER_DATE);
   if (yearMatch) {
     const yr   = yearMatch[1];
     const year = yr.length === 2 ? `20${yr}` : yr;
-    date = _tixrInsertYear(date, year);
+    const rangeM = date.match(/^(.+?)\s*[-–]\s*(.+)$/);
+    if (rangeM) {
+      // Range like "Tue Dec 30 - Thu Jan 1" — infer year for each end independently.
+      // If the end month is earlier in the calendar than the start month, the end is next year.
+      date = _tixrV1RangeWithYears(rangeM[1].trim(), rangeM[2].trim(), year);
+    } else {
+      date = _tixrInsertYear(date, year);
+    }
+  } else {
+    // No order date found — can't infer year for range end, so keep only start date.
+    date = date.replace(/\s*[-–]\s*.+$/, '').trim();
   }
 
   const cityMatch = text.match(_TIXR_CITY);
@@ -98,16 +111,27 @@ function _parseTixrV2(text) {
 
   let date = m[2].trim();
 
-  // Remove abbreviation periods: "Fri." → "Fri"
-  date = date.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\./i, '$1');
-
-  // For date ranges, take only the start date
-  date = date.replace(/\s+to\s+.+$/i, '').trim();
+  // Remove abbreviation periods on all day names in the string (global flag covers both ends of a range)
+  date = date.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\./gi, '$1');
 
   const cityMatch = text.match(_TIXR_CITY);
   const city = cityMatch ? `${cityMatch[1].trim()}, ${cityMatch[2]}` : 'N/A';
 
   return { event, venue, city, date };
+}
+
+// Handle V1 date ranges where neither end has a year.
+// "Tue Dec 30" / "Thu Jan 1" + "2025" → "Tue Dec 30, 2025 - Thu Jan 1, 2026"
+// If end month < start month (e.g. Jan < Dec), the end date falls in the next calendar year.
+function _tixrV1RangeWithYears(startStr, endStr, year) {
+  const MONTHS = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  const getMonth = s => {
+    const mm = s.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/i);
+    return mm ? MONTHS[mm[1].toLowerCase()] : 0;
+  };
+  const startYear = parseInt(year, 10);
+  const endYear   = getMonth(endStr) < getMonth(startStr) ? startYear + 1 : startYear;
+  return `${_tixrInsertYear(startStr, String(startYear))} - ${_tixrInsertYear(endStr, String(endYear))}`;
 }
 
 // Insert year before the time component so _parseDate can handle it.
