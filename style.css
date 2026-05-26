@@ -170,6 +170,13 @@ button.action:hover {
   color: #888;
 }
 
+.results-header .total-spent {
+  margin-left: auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #333;
+}
+
 /* ---- Table ---- */
 .table-wrap {
   overflow-x: auto; /* lets the table scroll horizontally on small screens */

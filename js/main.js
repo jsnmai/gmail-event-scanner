@@ -45,6 +45,7 @@ const tableBody   = document.getElementById('ticket-tbody');
 const authSection = document.getElementById('auth-section');
 const appSection  = document.getElementById('app-section');
 const countEl     = document.getElementById('ticket-count');
+const totalEl     = document.getElementById('total-spent');
 
 let _tickets = []; // holds parsed tickets so the download button can use them later
 
@@ -184,6 +185,17 @@ function _renderTable(tickets) {
   }
 
   if (countEl) countEl.textContent = tickets.length;
+
+  if (totalEl) {
+    let sum = 0;
+    let hasAny = false;
+    for (const t of tickets) {
+      const n = parseFloat(String(t.cost).replace(/[^0-9.]/g, ''));
+      if (!isNaN(n)) { sum += n; hasAny = true; }
+    }
+    totalEl.textContent = hasAny ? `Total spent: $${sum.toFixed(2)}` : '';
+  }
+
   resultsEl.hidden = tickets.length === 0;
 }
 
