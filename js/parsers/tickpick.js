@@ -21,11 +21,11 @@ const TickPickParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body); // _htmlToText is defined in utils.js
 
-    const m = text.match(_EVENT_BLOCK);
+    const m = text.match(_TP_EVENT_BLOCK);
     if (!m) return null;
 
-    const costMatch = text.match(_ORDER_TOTAL);
-    const qtyMatch  = text.match(_QUANTITY);
+    const costMatch = text.match(_TP_ORDER_TOTAL);
+    const qtyMatch  = text.match(_TP_QUANTITY);
 
     return {
       platform:     'TickPick',
@@ -42,11 +42,11 @@ const TickPickParser = {
 
 // Labeled fields present in order confirmation and order-placed emails.
 // Delivery, listing, and group-order emails lack these fields and return null.
-const _EVENT_BLOCK = /Event Name:\n([^\n]+)\nEvent Date:\n([^\n]+)\nVenue:\n([^\n]+)/i;
+const _TP_EVENT_BLOCK = /Event Name:\n([^\n]+)\nEvent Date:\n([^\n]+)\nVenue:\n([^\n]+)/i;
 
 // "Order Confirmed" format:  Order Total\n$153.00
 // "Order Placed" format:     Order Total:\n$153.00
-const _ORDER_TOTAL = /Order Total:?\n\$([\d,]+\.\d{2})/i;
+const _TP_ORDER_TOTAL = /Order Total:?\n\$([\d,]+\.\d{2})/i;
 
 // Quantity appears as "× 1" (confirmed) or "x 1" (placed)
-const _QUANTITY = /[×x]\s*(\d+)/;
+const _TP_QUANTITY = /[×x]\s*(\d+)/;

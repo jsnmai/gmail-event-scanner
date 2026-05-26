@@ -24,13 +24,13 @@ const StubHubParser = {
   parse(_sender, subject, body, _emailDate) {
     const text = _htmlToText(body);
 
-    const m = text.match(_ORDER_BLOCK);
+    const m = text.match(_SH_ORDER_BLOCK);
     if (!m) return null;
 
     // "Friday, June 02, 2023 | 20:00" → "Friday, June 02, 2023 20:00"
     const date = m[1].replace(/\s*\|\s*/, ' ').trim();
 
-    const costMatch = text.match(_ORDER_TOTAL);
+    const costMatch = text.match(_SH_ORDER_TOTAL);
 
     return {
       platform:     'StubHub',
@@ -45,6 +45,6 @@ const StubHubParser = {
   },
 };
 
-const _ORDER_BLOCK = /Order #\s*\d+\n([^\n]+\|\s*\d+:\d+)\n(?:\([^\n]+\)\n)?([^\n]+)\n([^\n]+)\n(\d+)\s+Ticket/i;
+const _SH_ORDER_BLOCK = /Order #\s*\d+\n([^\n]+\|\s*\d+:\d+)\n(?:\([^\n]+\)\n)?([^\n]+)\n([^\n]+)\n(\d+)\s+Ticket/i;
 
-const _ORDER_TOTAL = /Order Total\n\$([\d,]+\.\d{2})/i;
+const _SH_ORDER_TOTAL = /Order Total\n\$([\d,]+\.\d{2})/i;
