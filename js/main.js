@@ -18,9 +18,9 @@ const PARSERS = [
   StubHubParser,
   TicketWebParser,
   DNALoungeParser,
+  TixrParser,
 
   // Uncomment (and add the <script> tag) as you port each parser:
-  // TixrParser,
   // AXSParser,
   // FrontGateParser,
 ];
