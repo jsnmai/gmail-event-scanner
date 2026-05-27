@@ -7,7 +7,7 @@ const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const PAGE_SIZE = 500; // maximum Gmail allows per list request
 
 // Fetch all emails matching the given Gmail search query (e.g. "from:ticketmaster.com").
-// Returns an array of { sender, subject, emailDate, body } objects.
+// Returns an array of { sender, subject, emailDate, sourceMessageId, body } objects.
 async function fetchEmailsByQuery(accessToken, query, onProgress) {
   const stubs = await _getAllMessageStubs(accessToken, query);
 
@@ -63,10 +63,11 @@ function _parseMessage(msg) {
   }
 
   return {
-    sender:    headers['From']    || '',
-    subject:   headers['Subject'] || '',
-    emailDate: headers['Date']    || '',
-    body:      _extractBody(msg.payload),
+    sender:          headers['From']    || '',
+    subject:         headers['Subject'] || '',
+    emailDate:       headers['Date']    || '',
+    sourceMessageId: msg.id             || '',
+    body:            _extractBody(msg.payload),
   };
 }
 

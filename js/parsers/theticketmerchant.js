@@ -19,6 +19,9 @@
 //   ...
 //   Total:
 //   US$127.00
+//
+// Selection heuristic: keep "New Order" messages as purchase records; mobile-ticket
+// delivery text within the order is metadata, not a second event row.
 
 const TicketMerchantParser = {
   name: 'The Ticket Merchant',
@@ -58,7 +61,7 @@ const TicketMerchantParser = {
       city:         venueM ? venueM[2].trim() : 'N/A',
       date:         dateM ? dateM[1].trim() : 'N/A',
       quantity:     qtyM ? parseInt(qtyM[1], 10) : 1,
-      cost:         costM ? `$${costM[1]}` : 'N/A',
+      cost:         costM ? `USD $${costM[1]}` : 'N/A',
       emailSubject: subject,
     };
   },

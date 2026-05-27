@@ -7,9 +7,12 @@
 //   - Subject line has the event name: "Your HARD Summer Receipt - Order #123"
 //   - Some subjects use the promoter name ("Insomniac Events") instead of the real event.
 //     In that case, the body has "EVENT at VENUE" on the line just before the date — preferred.
-//   - Merchandise-only receipts (magnets, collectibles) are skipped.
+//   - Merchandise-only receipts (magnets, collectibles) are retained as add-ons.
 //   - Multiple ticket types have separate quantity rows that must be summed.
 //   - Dates can be ranges: "Friday, March 28, 2025 - Saturday, March 29, 2025"
+//
+// Selection heuristic: Receipt emails are the primary purchase record; digital ticket
+// delivery/shipping notices are skipped, while receipt add-ons are retained and classified.
 
 const FrontGateParser = {
   name: 'Front Gate Tickets',
@@ -32,12 +35,8 @@ const FrontGateParser = {
       return null;
     }
 
-    // Skip merchandise-only receipts (e.g. magnet bundles ordered without a ticket)
     const itemMatch = text.match(_FG_ITEM_DESCRIPTION);
-    if (itemMatch && _FG_MERCHANDISE.test(itemMatch[1])) {
-      // console.debug('[FG] skipped — merchandise-only receipt');
-      return null;
-    }
+    const ticketType = itemMatch ? itemMatch[1].trim() : '';
 
     // Prefer the body event line ("SLANDER at Los Angeles Convention Center") over the subject,
     // since some subjects only name the promoter ("Insomniac Events"), not the actual event.
@@ -71,6 +70,7 @@ const FrontGateParser = {
       date,
       quantity,
       cost:         costMatch ? `$${costMatch[1]}` : 'N/A',
+      ticketType,
       emailSubject: subject,
     };
   },

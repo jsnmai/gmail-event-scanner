@@ -13,6 +13,9 @@
 //   $75.98 USD                           ← total on its own line after "Total"
 //
 // Subject: "Here is your ticket to Breakaway Arizona 2026"
+//
+// Selection heuristic: keep ticket messages whose body confirms an order/reservation;
+// sender messages without both that context and the ticket subject shape are skipped.
 
 const UniverseParser = {
   name: 'Universe',

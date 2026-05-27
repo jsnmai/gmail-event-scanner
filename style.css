@@ -137,6 +137,19 @@ button.action:hover {
   background: #1b5e20;
 }
 
+button.secondary {
+  background: #64748b;
+}
+
+button.secondary:hover {
+  background: #475569;
+}
+
+button.compact {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+}
+
 /* ---- Status line ---- */
 #status {
   color: #555;
@@ -195,8 +208,20 @@ th, td {
   white-space: nowrap;
 }
 
-/* Event (col 3) and Venue (col 4) can wrap since they can be long */
-td:nth-child(3), td:nth-child(4) {
+/* In the primary view, Event (col 3) and Venue (col 4) can wrap. */
+#ticket-table td:nth-child(3), #ticket-table td:nth-child(4) {
+  white-space: normal;
+  min-width: 160px;
+}
+
+/* When add-ons are revealed, Type shifts Event and Venue one column to the right. */
+#ticket-table.show-types td:nth-child(3) {
+  white-space: nowrap;
+  min-width: 0;
+}
+
+#ticket-table.show-types td:nth-child(4),
+#ticket-table.show-types td:nth-child(5) {
   white-space: normal;
   min-width: 160px;
 }

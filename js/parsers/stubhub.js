@@ -11,6 +11,10 @@
 //   Illenium
 //   Chase Center
 //   4 Ticket(s)
+//
+// Selection heuristic: keep buyer emails containing the structured Order # ticket
+// block, including order/readiness variants; their order number allows global dedupe
+// to merge duplicate purchase notifications without combining known separate orders.
 
 const StubHubParser = {
   name: 'StubHub',
@@ -28,18 +32,20 @@ const StubHubParser = {
     if (!m) return null;
 
     // "Friday, June 02, 2023 | 20:00" → "Friday, June 02, 2023 20:00"
-    const date = m[1].replace(/\s*\|\s*/, ' ').trim();
+    const date = m[2].replace(/\s*\|\s*/, ' ').trim();
 
     const costMatch = text.match(_SH_ORDER_TOTAL);
+    const location = _stubHubLocation(m[4].trim());
 
     return {
       platform:     'StubHub',
-      event:        m[2].trim(),
-      venue:        m[3].trim(),
-      city:         'N/A',
+      event:        m[3].trim(),
+      venue:        location.venue,
+      city:         location.city,
       date,
-      quantity:     parseInt(m[4], 10),
+      quantity:     parseInt(m[5], 10),
       cost:         costMatch ? `$${costMatch[1]}` : 'N/A',
+      orderNumber:  m[1],
       emailSubject: subject,
     };
   },
@@ -47,6 +53,14 @@ const StubHubParser = {
 
 // [^\n]* after the time consumes any trailing text on the same line,
 // e.g. "(Event time subject to change)" appended without a preceding newline
-const _SH_ORDER_BLOCK = /Order #\s*\d+\n([^\n]+\|\s*\d+:\d+)[^\n]*\n(?:\([^\n]+\)\n)?([^\n]+)\n([^\n]+)\n(\d+)\s+Ticket/i;
+const _SH_ORDER_BLOCK = /Order #\s*(\d+)\n([^\n]+\|\s*\d+:\d+)[^\n]*\n(?:\([^\n]+\)\n)?([^\n]+)\n([^\n]+)\n(\d+)\s+Ticket/i;
 
 const _SH_ORDER_TOTAL = /Order Total\s*\n\$([\d,]+\.\d{2})/i;
+
+function _stubHubLocation(rawVenue) {
+  const match = rawVenue.match(/^(.+?),\s+([^,\n]+,\s*[A-Z]{2})(?:\s+\d{5})?$/);
+  return {
+    venue: match ? match[1].trim() : rawVenue,
+    city: match ? match[2].trim() : 'N/A',
+  };
+}

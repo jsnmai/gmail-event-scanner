@@ -5,6 +5,11 @@
 //   Event Name: Dom Dolla
 //   Event Date: Fri Oct 18, 2024 4:00PM
 //   Venue: Los Angeles State Historic Park
+//
+// Selection heuristic: keep order-confirmation/order-placed messages that expose
+// labeled event fields; delivery, listing, and other sender messages are skipped.
+// Confirmation variants for one purchase share an order number in the subject;
+// retain it so global dedupe can join those rows without joining distinct orders.
 
 const TickPickParser = {
   name: 'TickPick',
@@ -26,15 +31,18 @@ const TickPickParser = {
 
     const costMatch = text.match(_TP_ORDER_TOTAL);
     const qtyMatch  = text.match(_TP_QUANTITY);
+    const location  = _tickPickLocation(m[3].trim());
+    const orderM    = subject.match(_TP_ORDER_NUMBER);
 
     return {
       platform:     'TickPick',
       event:        m[1].trim(),
-      venue:        m[3].trim(),
-      city:         'N/A',
+      venue:        location.venue,
+      city:         location.city,
       date:         m[2].trim(),
       quantity:     qtyMatch ? parseInt(qtyMatch[1], 10) : 1,
       cost:         costMatch ? `$${costMatch[1]}` : 'N/A',
+      orderNumber:  orderM ? orderM[1] : '',
       emailSubject: subject,
     };
   },
@@ -51,3 +59,14 @@ const _TP_ORDER_TOTAL = /Order Total:?\n\$([\d,]+\.\d{2})/i;
 
 // Quantity appears as "× 1" (confirmed) or "x 1" (placed)
 const _TP_QUANTITY = /[×x]\s*(\d+)/;
+
+// Subject examples include "(Order Number 220446180)" across purchase updates.
+const _TP_ORDER_NUMBER = /\bOrder (?:Number|#)\s*([A-Z0-9-]+)\b/i;
+
+function _tickPickLocation(rawVenue) {
+  const match = rawVenue.match(/^(.+?),\s+([^,\n]+,\s*[A-Z]{2})(?:\s+\d{5})?$/);
+  return {
+    venue: match ? match[1].trim() : rawVenue,
+    city: match ? match[2].trim() : 'N/A',
+  };
+}

@@ -7,6 +7,9 @@
 //   Venue: "Palace of Fine Arts (view on map)"
 //   Address: "3601 Lyon St, San Francisco CA"   ← no zip, state not comma-separated
 //   Total: "Total $115.02" (in the receipt table)
+//
+// Selection heuristic: for this format, ticket-delivery emails contain the receipt
+// fields used as the primary row; transfer notifications are intentionally skipped.
 
 const SeeTicketsParser = {
   name: 'See Tickets',

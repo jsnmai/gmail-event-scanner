@@ -14,6 +14,9 @@
 //   ...
 //   Total
 //   $0.00                          ← total shown as $0.00 in some Megatix emails
+//
+// Selection heuristic: keep sender messages whose subject has the event/city/date
+// purchase shape; unrelated sender traffic without that shape is skipped.
 
 const MegatixParser = {
   name: 'Megatix',
@@ -48,6 +51,7 @@ const MegatixParser = {
     // console.debug('[MTX] venueM:', venueM && venueM[1]);
     // console.debug('[MTX] costM:', costM && costM[1]);
 
+    // AUD is inferred from this AU-oriented platform until currency fixtures are available.
     return {
       platform:     'Megatix',
       event,
@@ -55,7 +59,7 @@ const MegatixParser = {
       city,
       date,
       quantity:     1,
-      cost:         costM ? `$${costM[1]}` : 'N/A',
+      cost:         costM ? `AUD $${costM[1]}` : 'N/A',
       emailSubject: subject,
     };
   },

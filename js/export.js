@@ -3,16 +3,18 @@
 // Nothing is uploaded anywhere. The file is created entirely in the browser
 // using the Blob API, and the download is triggered via a temporary anchor link.
 
-// Column order matches the web table: Date first, emailSubject last as a reference column
+// Column order starts with the displayed table fields, then source references.
 const CSV_COLUMNS = [
-  { header: 'Date',      value: t => _formatDate(t.date) },
+  { header: 'Date',      value: t => _displayTicketDate(t) },
+  { header: 'Item Type', value: t => t.itemType },
   { header: 'Platform',  value: t => t.platform },
   { header: 'Event',     value: t => t.event },
   { header: 'Venue',     value: t => t.venue },
   { header: 'City',      value: t => t.city },
   { header: 'Qty',       value: t => t.quantity },
   { header: 'Cost',      value: t => t.cost },
-  { header: 'Subject',   value: t => t.emailSubject },
+  { header: 'Subject',   value: t => _sourceSubjects(t) },
+  { header: 'Source Message ID', value: t => (t.sourceMessageIds || [t.sourceMessageId]).filter(Boolean).join('; ') },
 ];
 
 // Build a CSV string from the tickets array and prompt the browser to save it.

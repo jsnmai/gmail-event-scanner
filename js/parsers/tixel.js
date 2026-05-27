@@ -11,6 +11,9 @@
 //     1 x ticket:   $153.89
 //     Fees:         $14.47
 //     Total:        $168.36
+//
+// Selection heuristic: keep "You purchased a ticket to ..." messages as resale
+// purchase records; other Tixel sender traffic without that subject is skipped.
 
 const TixelParser = {
   name: 'Tixel',
@@ -38,6 +41,7 @@ const TixelParser = {
       city  = _tixelExtractCity(venueAddrM[2].trim());
     }
 
+    // AUD is inferred from this AU-oriented platform until currency fixtures are available.
     return {
       platform:     'Tixel',
       event:        subjectM[1].trim(),
@@ -45,7 +49,7 @@ const TixelParser = {
       city,
       date:         dateM ? dateM[0].trim() : 'N/A',
       quantity:     qtyM ? parseInt(qtyM[1], 10) : 1,
-      cost:         totalM ? `$${totalM[1]}` : 'N/A',
+      cost:         totalM ? `AUD $${totalM[1]}` : 'N/A',
       emailSubject: subject,
     };
   },

@@ -15,6 +15,9 @@
 //   [Venue Name]              ← footer address block
 //   [Street Address]
 //   [City, ST ZIP]
+//
+// Selection heuristic: keep explicit "Order #... Confirmation" messages as purchase
+// records; sender messages without that subject and event/date block are skipped.
 
 const TheBigEParser = {
   name: 'The Big E',

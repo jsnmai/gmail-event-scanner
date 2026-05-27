@@ -22,6 +22,7 @@ const PARSERS = [
   AXSParser,
   FrontGateParser,
   UniverseParser,
+  PoshParser,
   EventbriteParser,
   SeeTicketsParser,
   MoshtixParser,
@@ -55,8 +56,12 @@ const authSection = document.getElementById('auth-section');
 const appSection  = document.getElementById('app-section');
 const countEl     = document.getElementById('ticket-count');
 const totalEl     = document.getElementById('total-spent');
+const ticketTable = document.getElementById('ticket-table');
+const typeColumnHeader = document.getElementById('type-column-header');
+const addOnToggleBtn = document.getElementById('toggle-addons-btn');
 
 let _tickets = []; // holds parsed tickets so the download button can use them later
+let _showAddOns = false; // add-ons stay exportable, but primary results start clean
 
 // Called by the GIS <script> tag's onload attribute once the library is ready.
 // This is the entry point for the whole app.
@@ -71,6 +76,7 @@ function onGISLoad() {
   signOutBtn.addEventListener('click', onSignedOut);
   scanBtn.addEventListener('click', runScan);
   downloadBtn.addEventListener('click', () => downloadCSV(_tickets));
+  addOnToggleBtn.addEventListener('click', _toggleAddOns);
 }
 
 // Called after the user successfully completes the Google sign-in flow.
@@ -90,6 +96,7 @@ function onSignedOut() {
   signOutBtn.hidden   = true;   // hide the header sign-out button
   resultsEl.hidden    = true;
   downloadBtn.hidden  = true;
+  _showAddOns         = false;
   _tickets            = [];
   tableBody.innerHTML = '';
   setStatus('');
@@ -101,10 +108,11 @@ async function runScan() {
   downloadBtn.hidden = true;
   resultsEl.hidden   = true;
   tableBody.innerHTML = '';
+  _showAddOns        = false;
 
   try {
     const token = getAccessToken();
-    const query = buildGmailQuery(); // built from the active parser list in parsers/index.js
+    const query = buildGmailQuery(); // built from the active parser registry above
 
     setStatus('Searching Gmail for ticket emails...');
     const emails = await fetchEmailsByQuery(token, query, (done, total) => {
@@ -130,38 +138,48 @@ async function runScan() {
 
       if (!ticket) continue; // parser returned null (e.g. marketing email, not a confirmation)
 
-      _tickets.push(ticket);
+      _tickets.push({
+        ...ticket,
+        emailDate: email.emailDate,
+        sourceMessageId: email.sourceMessageId,
+        sourceMessageIds: email.sourceMessageId ? [email.sourceMessageId] : [],
+        sourceParser: parser.name,
+        sourceParsers: [parser.name],
+        rawSubject: email.subject,
+        rawSubjects: [email.subject],
+        rawFrom: email.sender,
+        rawFroms: [email.sender],
+        emailDates: email.emailDate ? [email.emailDate] : [],
+      });
     }
 
-    // Sort newest-first using the same robust parser used for display
-    _tickets.sort((a, b) => {
-      const da = _parseDate(a.date);
-      const db = _parseDate(b.date);
-      if (isNaN(da)) return 1;
-      if (isNaN(db)) return -1;
-      return db - da;
-    });
+    _tickets = dedupeTickets(_tickets);
+    sortTicketsByEventDate(_tickets);
 
     _renderTable(_tickets);
 
-    const count    = _tickets.length;
-    const skipped  = emails.length - count;
+    const eventCount = _tickets.filter(t => t.itemType === 'event').length;
+    const addOnCount = _tickets.filter(t => t.itemType === 'add-on').length;
+    const skipped  = emails.length - _tickets.length;
     // List every active platform by name so the message stays accurate as parsers are added
     const platforms = PARSERS.map(p => p.name).join(', ');
 
     const skippedNote = skipped > 0
-      ? ` — ${skipped} skipped (marketing emails, newsletters, or unrecognized formats)`
+      ? ` - ${skipped} skipped (marketing emails, newsletters, unrecognized formats, or merged duplicates)`
+      : '';
+    const addOnNote = addOnCount > 0
+      ? ` ${addOnCount} add-on${addOnCount !== 1 ? 's' : ''} hidden from primary results but included in CSV.`
       : '';
 
     setStatus(
       `Scanned ${emails.length} email${emails.length !== 1 ? 's' : ''} from ${platforms}. ` +
-      `Found ${count} ticket confirmation${count !== 1 ? 's' : ''}${skippedNote}.`
+      `Found ${eventCount} event${eventCount !== 1 ? 's' : ''}${skippedNote}.${addOnNote}`
     );
 
-    if (count > 0) downloadBtn.hidden = false;
+    if (_tickets.length > 0) downloadBtn.hidden = false;
 
   } catch (err) {
-    setStatus(`Error: ${err.message}`);
+    setStatus('Unable to complete the scan. Please try again.');
     console.error(err);
   }
 
@@ -172,116 +190,50 @@ async function runScan() {
 function _renderTable(tickets) {
   tableBody.innerHTML = '';
 
-  for (const t of tickets) {
+  const addOnCount = tickets.filter(t => t.itemType === 'add-on').length;
+  if (typeColumnHeader) typeColumnHeader.hidden = !_showAddOns;
+  if (ticketTable) ticketTable.classList.toggle('show-types', _showAddOns);
+
+  const visibleTickets = _showAddOns
+    ? tickets
+    : tickets.filter(t => t.itemType !== 'add-on');
+
+  for (const t of visibleTickets) {
     const row = document.createElement('tr');
     // Use _esc() on every value to prevent XSS; ticket data comes from email content
     row.innerHTML = `
-      <td>${_esc(t.date)}</td>
+      <td>${_esc(_displayTicketDate(t))}</td>
+      ${_showAddOns ? `<td>${_esc(t.itemType)}</td>` : ''}
       <td>${_esc(t.platform)}</td>
       <td>${_esc(t.event)}</td>
       <td>${_esc(t.venue)}</td>
       <td>${_esc(t.city)}</td>
       <td>${_esc(t.quantity)}</td>
       <td>${_esc(t.cost)}</td>
+      <td>${_esc(_sourceSubjects(t))}</td>
     `;
     tableBody.appendChild(row);
   }
 
-  if (countEl) countEl.textContent = tickets.length;
+  const eventTickets = tickets.filter(t => t.itemType === 'event');
+  if (countEl) countEl.textContent = eventTickets.length;
 
   if (totalEl) {
-    let sum = 0;
-    let hasAny = false;
-    for (const t of tickets) {
-      const n = parseFloat(String(t.cost).replace(/[^0-9.]/g, ''));
-      if (!isNaN(n)) { sum += n; hasAny = true; }
-    }
-    totalEl.textContent = hasAny ? `Total spent: $${sum.toFixed(2)}` : '';
+    totalEl.textContent = formatCurrencyTotals(eventTickets);
+  }
+
+  if (addOnToggleBtn) {
+    const label = `${addOnCount} add-on${addOnCount !== 1 ? 's' : ''}`;
+    addOnToggleBtn.hidden = addOnCount === 0;
+    addOnToggleBtn.textContent = _showAddOns ? `Hide ${label}` : `Show ${label}`;
   }
 
   resultsEl.hidden = tickets.length === 0;
 }
 
-// Parse a raw date string from any parser into a Date object.
-// Shared by _formatDate (display) and the sort comparator so both behave identically.
-function _parseDate(dateStr) {
-  if (!dateStr) return new Date(NaN);
-
-  // Normalize platform-specific separators (·, •, @) to spaces, then collapse whitespace
-  let cleaned = dateStr.replace(/[·•@]/g, ' ').replace(/\s+/g, ' ').trim();
-
-  // For date ranges, use only the start date for sorting/display.
-  // Numeric range: "4/26/2025 4:00 PM - 4/27/2025 4:00 PM" (AXS multi-day passes)
-  cleaned = cleaned.replace(/\s*[-–]\s*\d{1,2}\/\d{1,2}\/\d{4}.*/i, '');
-  // Named-day range: "- Saturday, March 29", "to Sun. Jul 23, 2023", "— Sat · Jan 20 2024" (FrontGate, Tixr, TM multi-day)
-  cleaned = cleaned.replace(/\s*(?:[-–—]|to)\s*(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).+$/i, '');
-
-  // Normalize "at" as a time separator: "Sat Dec 28 at 3:00 PM" → "Sat Dec 28 3:00 PM"
-  // Only matches "at" immediately followed by a digit to avoid stripping "at" in venue names.
-  cleaned = cleaned.replace(/\s+at\s+(\d)/i, ' $1');
-
-  // Strip trailing timezone abbreviations: "4:00 PM EDT" → "4:00 PM"
-  cleaned = cleaned.replace(/(\d+:\d+\s*[AP]M)\s+[A-Z]{2,5}\b/i, '$1');
-
-  // Normalize day abbreviations with trailing period: "Fri." → "Fri"
-  cleaned = cleaned.replace(/\b(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\./gi, '$1');
-
-  // Normalize am/pm — handle both "7:00pm" (no space) and "7:00 pm" (lowercase)
-  cleaned = cleaned.replace(/(\d)\s*(am|pm)\b/gi, (_, n, p) => `${n} ${p.toUpperCase()}`);
-
-  // Normalize time without minutes: "9 PM" → "9:00 PM"
-  cleaned = cleaned.replace(/\b(\d{1,2}) (AM|PM)\b/g, '$1:00 $2');
-
-  let d = new Date(cleaned);
-
-  // Drop leading day-of-week and retry: "Sat 16 November 2024 7:00 PM", "Friday, October 9, 2026"
-  if (isNaN(d)) {
-    cleaned = cleaned.replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\w*,?\s*/i, '');
-    d = new Date(cleaned);
-  }
-
-  // AU format puts day before month: "16 November 2024 7:00 PM"
-  // Reorder to "November 16, 2024 7:00 PM" which new Date() can parse
-  if (isNaN(d)) {
-    cleaned = cleaned.replace(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/, '$2 $1, $3');
-    d = new Date(cleaned);
-  }
-
-  return d;
-}
-
-// Format a raw date string for display: "06/16/2023 (Sat) · 7:00 PM"
-// For multi-day ranges, formats both ends: "03/28/2025 (Fri) · 12:00 AM – 03/29/2025 (Sat) · 12:00 AM"
-// The raw date is kept unchanged in the ticket object so the CSV export is unaffected.
-function _formatDate(dateStr) {
-  // Detect range end before _parseDate strips it, so both halves can be formatted.
-  // Numeric end:    "4/26/2025 4:00 PM - 4/27/2025 4:00 PM"  (AXS multi-day)
-  // Named-day end:  "Friday, March 28, 2025 - Saturday, March 29, 2025"  (FrontGate)
-  // "to" end:       "Fri. Apr 25, 2025 to Sun. Apr 27, 2025"  (Tixr V2)
-  const numericRange = dateStr.match(/\s*[-–]\s*(\d{1,2}\/\d{1,2}\/\d{4}.*)$/i);
-  const namedRange   = dateStr.match(/\s*(?:[-–]|to)\s*((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun).*)$/i);
-  const rangeEnd     = numericRange || namedRange;
-
-  if (rangeEnd) {
-    const startStr = dateStr.slice(0, dateStr.length - rangeEnd[0].length).trim();
-    const endStr   = rangeEnd[1].trim();
-    const startFmt = _formatSingleDate(startStr);
-    const endFmt   = _formatSingleDate(endStr);
-    if (startFmt && endFmt) return `${startFmt} – ${endFmt}`;
-  }
-
-  return _formatSingleDate(dateStr) || dateStr;
-}
-
-function _formatSingleDate(dateStr) {
-  const d = _parseDate(dateStr);
-  if (isNaN(d)) return null;
-  const mm   = String(d.getMonth() + 1).padStart(2, '0');
-  const dd   = String(d.getDate()).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const day  = d.toLocaleDateString('en-US', { weekday: 'short' });
-  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  return `${mm}/${dd}/${yyyy} (${day}) · ${time}`;
+function _toggleAddOns() {
+  _showAddOns = !_showAddOns;
+  _renderTable(_tickets);
 }
 
 // Escape special HTML characters to prevent XSS when inserting untrusted

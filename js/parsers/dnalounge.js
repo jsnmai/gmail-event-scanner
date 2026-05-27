@@ -7,6 +7,9 @@
 //   Separate:  "Lil Texas" / "Thu, Aug 10th, 9PM"  (event name and date on different lines)
 //
 // DNA Lounge emails omit the year — it's inferred from the email send date.
+//
+// Selection heuristic: keep messages containing the itemized receipt table and a
+// recognized event/date row; sender matches without that purchase data are skipped.
 
 const DNALoungeParser = {
   name: 'DNA Lounge',

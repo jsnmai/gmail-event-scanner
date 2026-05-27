@@ -12,6 +12,9 @@
 //   Cafe Du Nord
 //   2174 Market St.
 //   San Francisco, CA 94114
+//
+// Selection heuristic: keep messages containing an ORDER SUMMARY event block as the
+// purchase record; sender messages without that receipt structure are skipped.
 
 const TicketWebParser = {
   name: 'TicketWeb',

@@ -4,6 +4,9 @@
 // Ticketmaster sends two distinct email layouts depending on region:
 //   US: event name, then a bullet-separated date line, then "Venue — City, State"
 //   AU: "Order #..." header, then event, then "Venue, City", then a date with "@"
+//
+// Selection heuristic: keep only sender messages matching a structured US or AU
+// ticket/order layout; marketing, transfer, and other unrecognized formats are skipped.
 
 const TicketmasterParser = {
   name: 'Ticketmaster',

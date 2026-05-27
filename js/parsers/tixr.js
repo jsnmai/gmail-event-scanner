@@ -14,6 +14,9 @@
 //   1 Item
 //   Toxic Summer 2023 At The Midway
 //   Fri. Jul 21, 2023 to Sun. Jul 23, 2023
+//
+// Selection heuristic: keep messages matching either known order layout; for V1
+// dates missing an inferable year, preserve the uncertain raw date instead of guessing.
 
 const TixrParser = {
   name: 'Tixr',
@@ -88,9 +91,6 @@ function _parseTixrV1(text) {
     } else {
       date = _tixrInsertYear(date, year);
     }
-  } else {
-    // No order date found — can't infer year for range end, so keep only start date.
-    date = date.replace(/\s*[-–]\s*.+$/, '').trim();
   }
 
   const cityMatch = text.match(_TIXR_CITY);

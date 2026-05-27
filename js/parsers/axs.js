@@ -20,6 +20,12 @@
 //   "Sat Apr 4, 2026 - 8:00 PM"
 //   "ISOxo presents H.C.D. - Admissions"
 //   "Cow Palace, Daly City, CA"
+//
+// Selection heuristic:
+//   - Keep purchase confirmations as the primary paid record.
+//   - Keep received-transfer notices because there may be no purchase email for them.
+//   - Ignore "YOUR TICKETS ARE HERE" access/delivery notices; they usually repeat tickets
+//     already represented by a purchase confirmation and do not carry payment detail.
 
 const AXSParser = {
   name: 'AXS',
@@ -31,8 +37,7 @@ const AXSParser = {
   },
 
   parse(_sender, subject, body, _emailDate) {
-    // AXS uses narrow no-break spaces (U+00A0, U+202F) between time and AM/PM — normalize first
-    const text = _htmlToText(body).replace(/[  ]/g, ' ');
+    const text = _htmlToText(body);
 
     // console.debug('[AXS] subject:', subject);
     // console.debug('[AXS] text:\n' + text);
@@ -107,25 +112,25 @@ function _parseAXSStandard(text) {
   // Prefer the "Included Event(s)" name — it's the actual event, not the presale product label
   const included = text.match(_AXS_INCLUDED);
   const event    = included ? included[1].trim() : m[1].trim();
-  const venue    = m[2] ? m[2].trim() : 'N/A';
+  const location = _axsLocation(m[2] ? m[2].trim() : '');
   const time     = m[4];
 
   // For multi-day passes, collect all dates from the Included Event(s) block
   // e.g. "Dabin Admissions, 4/26/2025 ..." and "Dabin Admissions, 4/27/2025 ..."
-  // → date stored as "4/26/2025 4:00 PM - 4/27/2025 4:00 PM" so both days are visible
+  // Do not invent an end time when the order header supplies only one time.
   const sectionIdx = text.indexOf('Included Event(s)\n');
   let date = `${m[3]} ${time}`;
   if (sectionIdx !== -1) {
     const section  = text.slice(sectionIdx);
     const allDates = [...section.matchAll(_AXS_INCLUDED_ENTRY)].map(x => x[1]);
     if (allDates.length > 1) {
-      date = `${allDates[0]} ${time} - ${allDates[allDates.length - 1]} ${time}`;
+      date = `${allDates[0]} ${time} - ${allDates[allDates.length - 1]}`;
     } else if (allDates.length === 1) {
       date = `${allDates[0]} ${time}`;
     }
   }
 
-  return { event, venue, city: 'N/A', date };
+  return { event, venue: location.venue, city: location.city, date };
 }
 
 function _parseAXSThanks(text) {
@@ -156,5 +161,14 @@ function _parseAXSReceived(text) {
     city:     vcMatch ? vcMatch[2].trim() : 'N/A',
     date,
     quantity: parseInt(m[1], 10),
+  };
+}
+
+function _axsLocation(rawVenue) {
+  if (!rawVenue) return { venue: 'N/A', city: 'N/A' };
+  const match = rawVenue.match(/^(.+?),\s+([A-Za-z][^,\n]+,\s*[A-Z]{2})$/);
+  return {
+    venue: match ? match[1].trim() : rawVenue,
+    city: match ? match[2].trim() : 'N/A',
   };
 }

@@ -8,6 +8,9 @@
 //   Centennial Park, Gadigal Country
 //   ...
 //   TOTAL INCL. GST   $202.90
+//
+// Selection heuristic: keep bodies explicitly stating the booking is confirmed and
+// containing an event date; sender matches without that confirmation are skipped.
 
 const MoshtixParser = {
   name: 'Moshtix',
@@ -38,6 +41,7 @@ const MoshtixParser = {
     // console.log('[Moshtix] venueM:', venueM && venueM[1]);
     // console.log('[Moshtix] totalM:', totalM && totalM[1]);
 
+    // AUD is inferred from this AU-oriented platform until currency fixtures are available.
     return {
       platform:     'Moshtix',
       event:        eventM ? eventM[1].trim() : 'N/A',
@@ -45,7 +49,7 @@ const MoshtixParser = {
       city:         'N/A',
       date:         dateM[0].trim(),
       quantity:     1,
-      cost:         totalM ? `$${totalM[1]}` : 'N/A',
+      cost:         totalM ? `AUD $${totalM[1]}` : 'N/A',
       emailSubject: subject,
     };
   },
